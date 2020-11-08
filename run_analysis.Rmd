@@ -139,6 +139,12 @@ Dataset_Short[is.na(Dataset_Short)] = 0
 Data2<-aggregate(. ~ Subjects + Activity + act_desc, Dataset_Short, mean)
 Data2<-Data2[order(Data2$Subjects,Data2$Activity),]
 write.table(Data2, file = "tidydata.txt",row.name=FALSE)
+
+# final data set observations and vriable descriptions
+final <- read.table(file.path(".", "tidydata.txt" ),header = TRUE)
+str (final)
+
 ```
 library(knitr)
 knit2html("codebook.Rmd");
+
