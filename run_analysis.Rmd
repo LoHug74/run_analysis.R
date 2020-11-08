@@ -5,32 +5,140 @@ date: "11/8/2020"
 output: html_document
 ---
 
-
-this is a brand new test 
-
-
-https://github.com/LoHug74/run_analysis.R.git
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Getting and Cleaning Data Week 4 Assignment
+review criteria
+* The submitted data set is tidy.
+* The Github repo contains the required scripts.
+* GitHub contains a code book that modifies and updates the available codebooks with the data to indicate all the variables and summaries         calculated, along with units, and any other relevant information.
+* The README that explains the analysis files is clear and understandable.
+* The work submitted for this project is the work of the student who submitted it.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Preparation: Data Download
+```
+# set working directory to shorten future paths
+setwd("C:/Users/huguel/Documents/Training/R/Coursera/Getting and Cleansing Data/run_analysis")
+file_name <- "ds.zip"
+dest <- paste(getwd(),file_name, sep = "/")
+url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# download file, test if destination exists or not before
+if (file.exists(file_name)) {file_name} else {download.file(url,dest,method="curl")}
 
-```{r cars}
-summary(cars)
+# unzip file and save it in the same folder
+unzip(dest, exdir = ".", unzip = "internal")
+      
+# get a list of all the zipped files
+path <- file.path("." , "UCI HAR Dataset")
+files<-list.files(path, recursive=TRUE)
+files
+```
+## Question 1
+### Merge the training and the test sets to create one data set.
+
+```
+## extract meta data
+
+# Feature names
+feat_nm <- read.table(file.path(path, "features.txt" ),header = FALSE, sep = " ", col.names = c("nb","feat_desc"))
+
+# Activity names
+Act_nm <- read.table(file.path(path, "activity_labels.txt" ),header = FALSE, col.names = c("Activity","act_desc"))
+
+## extract data
+
+# read test data
+Tst_X <-read.table(file.path(path, "test" , "X_test.txt" ),header = FALSE)
+Tst_y <-read.table(file.path(path, "test" , "y_test.txt" ),header = FALSE)
+Tst_s <-read.table(file.path(path, "test" , "subject_test.txt" ),header = FALSE)
+
+# train data
+Trn_X <-read.table(file.path(path, "train" , "X_train.txt" ),header = FALSE)
+Trn_y <-read.table(file.path(path, "train" , "y_train.txt" ),header = FALSE)
+Trn_s <-read.table(file.path(path, "train" , "subject_train.txt" ),header = FALSE)
+
+## union Test & Train data sets
+Union_X <- rbind(Tst_X, Trn_X)
+Union_y <- rbind(Tst_y, Trn_y)
+Union_s <- rbind(Tst_s, Trn_s)
+
+## Name fields
+names(Union_X) <- feat_nm$feat_desc
+names(Union_y) <- "Activity"
+names(Union_s) <- "Subjects"
+
+## Combine data sets columns
+Comb_temp <- cbind (Union_s,Union_y)
+DataSet_full <- cbind (Comb_temp,Union_X)
+
+```
+## Question 2: 
+### Extracts only the measurements on the mean and standard deviation for each measurement.
+
+```
+# get list of relevant fields, ie, the ones containing mean () or std() 
+feat_desc_shrt <- feat_nm$feat_desc[grep("mean\\(\\)|std\\(\\)",feat_nm$feat_desc)]
+kept_fields <- c ("Subjects","Activity",feat_desc_shrt)
+
+# keep only relevant fields
+library (dplyr)
+Dataset_Short <- DataSet_full%>% select(kept_fields)
 ```
 
-## Including Plots
+## Question 3 
+### Use descriptive activity names to name the activities in the data set
+```
+join activity code to activity description
+Dataset_Short <- inner_join (Act_nm,Dataset_Short, by = "Activity" )
 
-You can also embed plots, for example:
+# check data set 
+head(Dataset_Short)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```
+## Question 4 
+### Appropriately labels the data set with descriptive variable names.
+### eg: make filed name such as "fBodyBodyGyroJerkMag" more readable
+* 'f' becomes' frequency
+* 'BodyBody' becomes body
+* 'Gyro' becomes gyroscope
+* 'Mag' becomes magnitude
+* 't' becomes time
+* 'Acc' becomes accelerometer
+* '_' between description words to make it more readable
+
+```
+# find replace caracter as per above description
+names(Dataset_Short)<-gsub("^t", "time_", names(Dataset_Short))
+names(Dataset_Short)<-gsub("^f", "frequency_", names(Dataset_Short))
+names(Dataset_Short)<-gsub("Acc", "accelerometer_", names(Dataset_Short))
+names(Dataset_Short)<-gsub("Gyro", "gyroscope_", names(Dataset_Short))
+names(Dataset_Short)<-gsub("Mag", "magnitude_", names(Dataset_Short))
+names(Dataset_Short)<-gsub("Gravity", "gravity_", names(Dataset_Short))
+
+#to ensure presence of '_' after Body and avoid duplicate 'body'word
+names(Dataset_Short)<-gsub("Body", "body_", names(Dataset_Short))
+names(Dataset_Short)<-gsub("body_body_","body_", names(Dataset_Short))
+
+# check name change
+names (Dataset_Short)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## question 5 
+### From the data set in step 4, 
+### creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+
+```
+library(plyr)
+
+# find replace NA by 0 in the dataset, in case of
+Dataset_Short[is.na(Dataset_Short)] = 0 
+
+Data2<-aggregate(. ~ Subjects + Activity + act_desc, Dataset_Short, mean)
+Data2<-Data2[order(Data2$Subjects,Data2$Activity),]
+write.table(Data2, file = "tidydata.txt",row.name=FALSE)
+```
+library(knitr)
+knit2html("codebook.Rmd");
