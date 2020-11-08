@@ -4,10 +4,8 @@ author: "LoHu74"
 date: "11/8/2020"
 output: html_document
 ---
+https://github.com/LoHug74/run_analysis.R.git
 
-
-TEST TEST TEST 
-2ND TEST TES TES TSETSTE TT TA T 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
